@@ -1,0 +1,144 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  knitr::opts_chunk$set(error = TRUE),
+  out.width="400px", dpi=400,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# CAFF
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of CAFF is to do Cell cycle Analysis of scRNA-seq data based on Fourier Filter.
+
+## Installation
+
+You can install the development version of `CAFF` like so:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("Xu_Feng/CAFF")
+```
+
+## Application
+CAFF provides a variety of functions to analyze the cell cycle of single cell RNA-seq data in the following five aspects:
+- Pseudotime quantification
+- Identify the cell cycle-related genes
+- Cell cycle phase labels
+- Removing the cell cycle effect from the scRNA-seq dataset
+- Determining G0 (quiescent) state
+
+## Using the GSE129447(Hela) as an example:
+### 1. Quality Control
+#### 1.1 Cell and gene screening
+- Gene screening: Firstly, the genes whose expression level exceeds 70% are 0 are removed. This percentage can fluctuate between 70-90% according to the quality of the data.
+- Cell screening: Cells with sequencing depth less than 10000 were removed by viewing the sequencing depth distribution of the dataset.
+
+```{r}
+## Data preprocessing ------------------------
+library(edgeR)
+library(tidyverse)
+library(CAFF)
+library(data.table)
+
+data(Hela1)
+
+# Check the sequencing depth distribution:
+quantile(colSums(Hela1), probs = c(0,0.1, 0.25,0.5,0.75,0.9, 1))
+
+# Cells with sequencing depth less than 10000 were removed:
+colids <- which(colSums(Hela1) > 10000)
+
+# Genes with 0 expression in more than 70% of all cells were removed:
+rowids <- which(apply(Hela1, 1, function(x) length(which(x == 0))/length(x) <= 0.7))
+
+exp <- Hela1[rowids, colids]
+
+```
+
+#### 1.2 Data Preprocessing
+- cpm transformation: For Count data, after quality control, the data is transformed to cpm format using the `cpm` function in the `edgeR` package.
+- The expression matrix of cell cycle-related genes was extracted: the cell cycle genes used were 97 genes provided in Seurat package.
+
+```{r}
+# cpm transformation：
+exp_cpm <- cpm(exp, log = T) %>% round(2)
+exp_cpm_nolog <- cpm(exp, log = F) %>% round(2)
+
+# extracte the expression matrix of cell cycle related genes:
+load("cc_genes/cc_genes.Rdata")
+cc_genes <- intersect(seurat_cc_genes, rownames(exp_cpm))
+data_cc <- exp_cpm[cc_genes,]
+```
+
+#### 1.3 PCA was performed on data to observe data distribution and remove outliers
+
+```{r fig.height=5, fig.width=8}
+# the pca_plot function to see how the data is distributed on pc1 and pc2:
+p_x <- pca_plot(data_cc, time.iqr = 1)
+p_x$plot1
+p_x$plot2
+
+# remove_pc_outliers
+final_index <- p_x$final_index
+data_cc_new <- data_cc[, final_index]
+```
+
+### Pseudotime quantification
+#### `CAFF` methods
+```{r}
+## Our method ==============
+pseudo_order_list <- build_pseudo_order(data_cc_new, method = "Default")
+pseudo_order <- pseudo_order_list$pseudo_order
+pseudo_order_rank <- pseudo_order_list$pseudo_order_rank
+```
+
+#### `Tricycle` method
+```{r}
+## tricycle method ==============
+tricycle_order_rank <- build_pseudo_order(data_cc_new, method = "tricycle")
+```
+
+#### `reCAT` method
+```{r}
+## reCAT method ==============
+data_cc_cyclebase <-exp_cpm[intersect(cyclebase3.0_genes,rownames(exp_cpm)),intersect(colnames(data_cc_new),colnames(exp_cpm))]
+dim(data_cc_cyclebase)
+
+
+reCAT_order <- build_pseudo_order(data_cc_cyclebase, method ='reCAT')
+reCAT_order_rank <- reCAT_order[[2]]
+```
+
+#### Comparison above the three methods
+```{r fig.height=4, fig.width=12}
+## Comparison above the three methods ==============
+rank_data <- data.frame(pseudo_order_rank = pseudo_order_rank,
+                         tricycle_order_rank = tricycle_order_rank,
+                         reCAT_order_rank = reCAT_order_rank)
+rank_data <- rank_data[order(rank_data$pseudo_order_rank),]
+data_cc_ordered <- data_cc_new[, pseudo_order]
+
+p_list <- cor_scatter_plot(rank_data)
+
+library(cowplot)
+p <- plot_grid(plotlist = p_list, ncol = 3)
+p
+
+```
+
+
+
+
+

@@ -1,0 +1,19 @@
+Package: CAFF
+Title: CAFF
+Version: 0.0.1
+Author: Xu Feng <21111510033@m.fudan.edu.cn>
+Maintainer: Xu Feng <21111510033@m.fudan.edu.cn>
+Description: The goal of CAFF is to do Cell cycle Analysis of scRNA-seq data based on Fourier Filter.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Depends: 
+    R (>= 2.10)
+LazyData: true
+Imports: 
+    evaluate,
+    ggplot2,
+    patchwork,
+    pheatmap,
+    pracma
