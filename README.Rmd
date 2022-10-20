@@ -121,9 +121,9 @@ reCAT_order <- build_pseudo_order(data_cc_cyclebase, method ='reCAT')
 reCAT_order_rank <- reCAT_order[[2]]
 ```
 
-#### Comparison above the three methods
+#### Comparison between the three methods
 ```{r fig.height=4, fig.width=12}
-## Comparison above the three methods ==============
+## Comparison between the three methods ==============
 rank_data <- data.frame(pseudo_order_rank = pseudo_order_rank,
                          tricycle_order_rank = tricycle_order_rank,
                          reCAT_order_rank = reCAT_order_rank)
